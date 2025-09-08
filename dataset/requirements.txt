@@ -1,0 +1,5 @@
+python==3.6
+allennlp==2.4.0
+allennlp-models==2.4.0
+nltk==3.6.5
+en-core-web-sm==3.0.0
