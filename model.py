@@ -17,74 +17,67 @@ from transformers import AutoModel, AutoConfig
 import numpy as np
 
 
-# class AxialTransformer_by_entity(nn.Module):
-#     def __init__(self, emb_size=768, dropout=0.1, num_layers=2, dim_index=-1, heads=8, num_dimensions=2, ):
-#         super().__init__()
-#         self.num_layers = num_layers
-#         self.dim_index = dim_index
-#         self.heads = heads
-#         self.emb_size = emb_size
-#         self.dropout = dropout
-#         self.num_dimensions = num_dimensions
-#
-#         self.axial_attns = nn.ModuleList(
-#             [AxialAttention(dim=self.emb_size, dim_index=dim_index, heads=heads, num_dimensions=num_dimensions, ) for i
-#              in range(num_layers)])
-#
-#         self.ffns = nn.ModuleList([nn.Linear(self.emb_size, self.emb_size) for i in range(num_layers)])
-#
-#         self.lns = nn.ModuleList([nn.LayerNorm(self.emb_size) for i in range(num_layers)])
-#
-#         self.attn_dropouts = nn.ModuleList([nn.Dropout(dropout) for i in range(num_layers)])
-#         self.ffn_dropouts = nn.ModuleList([nn.Dropout(dropout) for i in range(num_layers)])
-#
-#     def forward(self, x):
-#         """
-#         注意力机制：首先，输入 x 经过轴向注意力模块 self.axial_attns[idx]，
-#             然后经过 dropout 层 self.attn_dropouts[idx]。结果与原始输入 x 相加，实现残差连接。
-#         前馈神经网络（FFN）：输出经过 FFN self.ffns[idx]，然后经过 dropout 层 self.ffn_dropouts[idx]。
-#         层归一化：最后，输出经过层归一化 self.lns[idx]。
-#         循环：以上步骤在每个 Transformer 层中重复，共 num_layers 次。
-#         """
-#         for idx in range(self.num_layers):
-#             x = x + self.attn_dropouts[idx](self.axial_attns[idx](x))
-#             x = self.ffns[idx](x)
-#             x = self.ffn_dropouts[idx](x)
-#             x = self.lns[idx](x)
-#         return x
-
-# AxialTransformer_by_entity
 class AxialTransformer_by_entity(nn.Module):
-    def __init__(self, emb_size=768, dropout=0.1, num_layers=2, dim_index=-1, heads=8, num_dimensions=2,):
+    def __init__(self, emb_size=768, dropout=0.1, num_layers=2, dim_index=-1, heads=8, num_dimensions=2, ):
         super().__init__()
-        self.axial_attns = nn.ModuleList([
-            AxialAttention(dim=emb_size, dim_index=dim_index, heads=heads, num_dimensions=num_dimensions,)
-            for _ in range(num_layers)
-        ])
-        self.ffns = nn.ModuleList([
-            nn.Sequential(
-                nn.Linear(emb_size, emb_size * 4),
-                nn.SiLU(),
-                nn.Linear(emb_size * 4, emb_size),
-                nn.Dropout(dropout)
-            )
-            for _ in range(num_layers)
-        ])
+        self.num_layers = num_layers
+        self.dim_index = dim_index
+        self.heads = heads
+        self.emb_size = emb_size
+        self.dropout = dropout
+        self.num_dimensions = num_dimensions
+
+        self.axial_attns = nn.ModuleList(
+            [AxialAttention(dim=self.emb_size, dim_index=dim_index, heads=heads, num_dimensions=num_dimensions, ) for i
+             in range(num_layers)])
+
+        self.ffns = nn.ModuleList([nn.Linear(self.emb_size, self.emb_size) for i in range(num_layers)])
+
+        self.lns = nn.ModuleList([nn.LayerNorm(self.emb_size) for i in range(num_layers)])
 
         self.attn_dropouts = nn.ModuleList([nn.Dropout(dropout) for i in range(num_layers)])
-        # 添加层归一化
-        self.lns1 = nn.ModuleList([nn.LayerNorm(emb_size) for _ in range(num_layers)])
-        self.lns2 = nn.ModuleList([nn.LayerNorm(emb_size) for _ in range(num_layers)])
+        self.ffn_dropouts = nn.ModuleList([nn.Dropout(dropout) for i in range(num_layers)])
 
     def forward(self, x):
-        for i in range(len(self.axial_attns)):
-            # 自注意力+残差+层归一化
-            x = x + self.attn_dropouts[i](self.axial_attns[i](x))
-            x = self.lns1[i](x)
-            # 前馈网络+残差+层归一化
-            x = x + self.ffns[i](x)
-            x = self.lns2[i](x)
+        for idx in range(self.num_layers):
+            x = x + self.attn_dropouts[idx](self.axial_attns[idx](x))
+            x = self.ffns[idx](x)
+            x = self.ffn_dropouts[idx](x)
+            x = self.lns[idx](x)
         return x
+
+# AxialTransformer_by_entity
+# class AxialTransformer_by_entity(nn.Module):
+#     def __init__(self, emb_size=768, dropout=0.1, num_layers=2, dim_index=-1, heads=8, num_dimensions=2,):
+#         super().__init__()
+#         self.axial_attns = nn.ModuleList([
+#             AxialAttention(dim=emb_size, dim_index=dim_index, heads=heads, num_dimensions=num_dimensions,)
+#             for _ in range(num_layers)
+#         ])
+#         self.ffns = nn.ModuleList([
+#             nn.Sequential(
+#                 nn.Linear(emb_size, emb_size * 4),
+#                 nn.SiLU(),
+#                 nn.Linear(emb_size * 4, emb_size),
+#                 nn.Dropout(dropout)
+#             )
+#             for _ in range(num_layers)
+#         ])
+
+#         self.attn_dropouts = nn.ModuleList([nn.Dropout(dropout) for i in range(num_layers)])
+#         # 添加层归一化
+#         self.lns1 = nn.ModuleList([nn.LayerNorm(emb_size) for _ in range(num_layers)])
+#         self.lns2 = nn.ModuleList([nn.LayerNorm(emb_size) for _ in range(num_layers)])
+
+#     def forward(self, x):
+#         for i in range(len(self.axial_attns)):
+#             # 自注意力+残差+层归一化
+#             x = x + self.attn_dropouts[i](self.axial_attns[i](x))
+#             x = self.lns1[i](x)
+#             # 前馈网络+残差+层归一化
+#             x = x + self.ffns[i](x)
+#             x = self.lns2[i](x)
+#         return x
 
 class NoAxialTransformer(nn.Module):
     def __init__(self):
@@ -105,10 +98,6 @@ class GATGraphConvLayer(nn.Module):
         
 
     def forward(self, g, inputs):
-        """
-        返回的结果 hs 是一个字典，键为节点类型，值为对应节点的输出特征
-        （形状为 (num_nodes, num_heads, out_feat)）
-        """
         hs = self.conv(g, inputs)
         return {ntype: h.squeeze(1) for ntype, h in hs.items()}
 
@@ -129,23 +118,6 @@ class GATGraphConv(nn.Module):
             feat = graph_layer(graph, {'node': feat})['node']
             feat = layer_norm(feat)
         return feat
-
-# class GATGraphConv(nn.Module):
-#     def __init__(self, hidden_dim, edge_types, feat_drop, attn_drop, residual, activation, num_layers):
-#         super().__init__()
-#         self.graph_conv = nn.ModuleList([
-#             GATGraphConvLayer(hidden_dim, hidden_dim, edge_types, feat_drop, attn_drop, residual, activation)
-#             for _ in range(num_layers)
-#         ])
-
-#     def forward(self, graph, feat):
-#         """
-#         逐层传播：遍历每一层 GATGraphConvLayer,
-#         """
-#         for graph_layer in self.graph_conv:
-#             feat = graph_layer(graph, {'node': feat})['node']
-#         return feat
-
 
 
 
@@ -212,42 +184,6 @@ def batched_l1_dist(a, b):
     res = torch.cdist(a, b, p=1)
     return res
 
-
-# class TransEScore(nn.Module):
-#     def __init__(self, gamma, dist_func='l2'):
-#         super(TransEScore, self).__init__()
-#         self.gamma = gamma
-#         if dist_func == 'l1':
-#             self.neg_dist_func = batched_l1_dist
-#             self.dist_ord = 1
-#         else:  # default use l2
-#             self.neg_dist_func = batched_l2_dist
-#             self.dist_ord = 2
-#
-#     def edge_func(self, edges):
-#         head = edges.src['emb']
-#         tail = edges.dst['emb']
-#         rel = edges.data['emb']
-#         score = head + rel - tail
-#         return {'score': torch.sigmoid(self.gamma - torch.norm(score, p=self.dist_ord, dim=-1)),
-#                 'trans': head + rel}
-#
-#     def reduce_func(self, nodes):
-#         s, t = nodes.mailbox['score'], nodes.mailbox['trans']
-#         h = (s.unsqueeze(-1) * t).sum(1)
-#         return {'h': h}
-#
-#     def infer(self, head_emb, rel_emb, tail_emb):
-#         head_emb = head_emb.unsqueeze(1)
-#         rel_emb = rel_emb.unsqueeze(0)
-#         score = (head_emb + rel_emb).unsqueeze(2) - tail_emb.unsqueeze(0).unsqueeze(0)
-#
-#         return self.gamma - torch.norm(score, p=self.dist_ord, dim=-1)
-#
-#     def forward(self, g):
-#         # g.apply_edges(lambda edges: self.edge_func(edges))
-#         g.update_all(lambda edges: self.edge_func(edges), lambda nodes: self.reduce_func(nodes))
-#         return g.ndata.pop('h')
 
 
 class DistMultScore(nn.Module):
@@ -399,7 +335,7 @@ class DocREModel(nn.Module):
         else:
             self.axial_conv = axial_conv(emb_size=self.hidden_size)
 
-        # ======================= 证据句 =================================
+        # ======================= Evidence ==============================
         self.loss_fnt_evi = nn.KLDivLoss(reduction="batchmean")
         self.max_sent_num = max_sent_num
         self.evi_thresh = evi_thresh
@@ -432,7 +368,6 @@ class DocREModel(nn.Module):
         feats = []
         nms, nss, nes = [len(m) for m in mention_pos], [len(s) for s in sent_pos], [len(e) for e in entity_pos]
 
-        # ================================ 获取最初的编码特征 ====================================
         for i in range(len(entity_pos)):  # for each batch
             _entity_embs, _entity_atts = [], []
 
@@ -477,16 +412,16 @@ class DocREModel(nn.Module):
         batch_rel = [len(ht) for ht in hts]
         ht_atts = torch.cat(ht_atts, dim=0)
         s_attn = self.calculate_evidence_attn(ht_atts, sent_pos, batch_rel)
-        # ==================================================================================
+        
 
-        # 合并生成feats的循环
+        
         for i in range(batch_size):
             doc_emb = sequence_output[i][0].unsqueeze(0)
             mention_embs = sequence_output[i, mention_pos[i] + offset]
             sentence_embs = [torch.logsumexp(sequence_output[i, offset + sent_start:offset + sent_end], dim=0)
                              for sent_start, sent_end in sent_pos[i]]
             sentence_embs = torch.stack(sentence_embs)
-            # 使用证据得分调整句子节点表示
+            
 
             if sent_labels is not None and self.evi_lambda > 0:
                 attn = s_attn[sum(batch_rel[:i]):sum(batch_rel[:i + 1])].mean(dim=0)[:len(sentence_embs)]
@@ -610,25 +545,25 @@ class DocREModel(nn.Module):
         tss = torch.stack(tss)
         rss = torch.stack(rss)
 
-        # return hss, rss, tss, ht_atts, batch_rel, kg_score, kg_flag
+        
         return hss, rss, tss, s_attn, kg_score, kg_flag
 
     def calculate_evidence_attn(self, doc_attn, sent_pos, batch_rel):
         offset = 1 if self.config.transformer_type in ["bert", "roberta"] else 0
         max_sent_num = max([len(sent) for sent in sent_pos])
         rel_sent_attn = []
-        seq_len = doc_attn.size(-1)  # 获取当前序列长度（即 token 数）
+        seq_len = doc_attn.size(-1)  
         for i in range(len(sent_pos)):  # for each batch
             # the relation ids corresponds to document in batch i is [sum(batch_rel[:i]), sum(batch_rel[:i+1]))
             curr_attn = doc_attn[sum(batch_rel[:i]):sum(batch_rel[:i + 1])]
             curr_sent_pos = []
             for s_start, s_end in sent_pos[i]:
-                # ===================== 断言：句子区间是否有效 =====================
+                
                 assert s_start < s_end, \
                     f"Invalid sentence interval in document {i}: (s_start={s_start}, s_end={s_end})"
                 assert s_start < seq_len, \
                     f"Sentence start index out of bounds in document {i}: s_start={s_start}, seq_len={seq_len}"
-                s_end = min(s_end, seq_len)  # 截断到有效长度
+                s_end = min(s_end, seq_len)  
                 curr_sent_pos.append(torch.arange(s_start, s_end).to(curr_attn.device) + offset)
 
             curr_attn_per_sent = [curr_attn.index_select(-1, sent) for sent in curr_sent_pos]
@@ -641,7 +576,7 @@ class DocREModel(nn.Module):
         return s_attn
 
     def compute_evidence_loss(self, s_attn, sent_labels):
-        """计算证据分布与真实标签的KL散度损失"""
+        
         norm_s_labels = sent_labels / (sent_labels.sum(dim=-1, keepdim=True) + 1e-30)
         norm_s_labels[norm_s_labels == 0] = 1e-30
         s_attn[s_attn == 0] = 1e-30
@@ -669,10 +604,7 @@ class DocREModel(nn.Module):
         # device = sequence_output.device
         nes = [len(x) for x in entity_pos]
         ne = max(nes)
-        # nss = [len(x) for x in sent_pos]
-
-        # hs_e, rs_e, ts_e, doc_attn, batch_rel, e_scores, kg_flag = self.get_hrt(sequence_output, attention, hts, sent_pos, entity_pos,
-        #                                                    coref_pos, mention_pos, men_graphs, ent_graphs, etypes, ne)
+                                                   
         hs_e, rs_e, ts_e, s_attn, e_scores, kg_flag = self.get_hrt(sequence_output, attention, hts, sent_pos, entity_pos,
                                                            coref_pos, mention_pos, men_graphs, ent_graphs, etypes, ne, sent_labels)
         hs_e = torch.tanh(self.head_extractor(torch.cat([hs_e, rs_e], dim=3)))
@@ -699,21 +631,21 @@ class DocREModel(nn.Module):
             rel_loss = self.rel_loss_fnt(final_logits, labels)
             total_loss = rel_loss
             loss_dict = {'rel_loss': rel_loss.item()}
-            # 新增：证据检索损失计算
+            
             if sent_labels is not None and self.evi_lambda > 0:
-                # s_attn = self.calculate_evidence_attn(doc_attn, sent_pos, batch_rel)
+                
                 evi_pred = F.pad(s_attn > self.evi_thresh, (0, self.max_sent_num - s_attn.shape[-1]))
-                # ===================== 断言：证据分布与标签维度是否匹配 =====================
+                
                 assert s_attn.shape == sent_labels.shape, \
                     f"Evidence attn shape {s_attn.shape} != sent_labels shape {sent_labels.shape}"
-                idx_used = torch.nonzero(labels[:, 1:].sum(dim=-1)).view(-1)  # 仅对正样本计算证据损失
+                idx_used = torch.nonzero(labels[:, 1:].sum(dim=-1)).view(-1)  
                 s_attn = s_attn[idx_used]
                 sent_labels = sent_labels[idx_used]
                 evi_loss = self.compute_evidence_loss(s_attn, sent_labels)
                 evi_loss = self.evi_lambda * evi_loss
-                total_loss = rel_loss + evi_loss  # 合并损失
+                total_loss = rel_loss + evi_loss  
                 loss_dict['evi_loss'] = evi_loss.item()
-                # return total_loss
+                
 
             if self.kg_loss_weight < 0 or not kg_flag:
                 return total_loss

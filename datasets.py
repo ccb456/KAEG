@@ -43,11 +43,11 @@ class DocRED(Dataset):
         else:
             ori_path = str(dataset_dir / file_name)
 
-        # ori_path : 'data/Re-DocRED/train_revised_coref.json'
+        
 
         with open(ori_path, "r") as fh:
             self.data: List[Dict] = json.load(fh)
-        # split: 'train_revised_coref'
+        
         split = ori_path[ori_path.rfind("/") + 1:ori_path.rfind(".")]
 
         kg_path = kg_dir / (file_name[:file_name.rfind('.')] + "_graph.json")
@@ -55,7 +55,7 @@ class DocRED(Dataset):
             self.kg: List[List[Dict]] = json.load(fh)
 
         save_path = save_dir / (split + f".{model_name_or_path}.pt")
-        # print(f"{save_path}")
+        
 
         if os.path.exists(save_path) and not force_regeneration:
             print(f"Loading DocRED {split} features ...")
@@ -71,7 +71,7 @@ class DocRED(Dataset):
         return self.features[idx]
 
     def read_docred(self, split, tokenizer):
-        # split: 'train_revised_coref'
+        
         i_line = 0
         pos_samples = 0
         neg_samples = 0
@@ -92,7 +92,7 @@ class DocRED(Dataset):
             MEN_NUM = len([m for e in entities for m in e if "coref" not in m])
             COREF_NUM = len([m for e in entities for m in e if "coref" in m])
 
-            # 处理正常的实体对
+            
             entity_start, entity_end = [], []
             for entity in entities:
                 for mention in entity:
@@ -103,18 +103,18 @@ class DocRED(Dataset):
                         entity_end.append((sent_id, pos[1] - 1))
             assert len(entity_start) == len(entity_end) == MEN_NUM
 
-            # 去重 + 提高查找效率
+            
             entity_start = set(entity_start)
             entity_end = set(entity_end)
 
             tokens: List[str] = []
             word2token: List[List[int]] = []
             for i_s, sent in enumerate(sentences):
-                # 记录单词在tokens中的位置
+                
                 idx_map = [0] * len(sent)
                 for i_w, word in enumerate(sent):
                     idx_map[i_w] = len(tokens)
-                    # 进行分词
+                    
                     word_tokens = tokenizer.tokenize(word)
                     if (i_s, i_w) in entity_start:
                         word_tokens = ["*"] + word_tokens
@@ -123,9 +123,9 @@ class DocRED(Dataset):
                     tokens.extend(word_tokens)
                 idx_map.append(len(tokens))
                 word2token.append(idx_map)
-            # 记录句子的起始和结束位置
+            
             sent_pos = [(word2token[i][0], word2token[i][-1]) for i in range(SENT_NUM)]
-            # 存储训练数据
+            
             train_triple = defaultdict(list)
             for label in ori_labels:
                 h, t, r, evi = label['h'], label['t'], self.rel2id[label['r']], label['evidence']
@@ -146,7 +146,7 @@ class DocRED(Dataset):
             mention_id = 0
             for entity_id, entity in enumerate(entities):
 
-                # 获取同组实体内名字最长的实体类型
+               
                 name_lens = np.array([len(m['name']) for m in entity if "coref" not in m])
                 long_idx = np.argmax(name_lens)
                 entity_types.append(self.ner2id[entity[long_idx]['type']])
@@ -158,12 +158,6 @@ class DocRED(Dataset):
                         end = word2token[sent_id][pos[1]]
                     except IndexError as e:
                         end = word2token[sent_id][pos[1] - 1]
-                        print(f"sent_id: {sent_id}")
-                        print(f"pos[1]: {pos[1]}")
-                        if sent_id < len(word2token):
-                            print(f"word2token[sent_id] 的长度: {len(word2token[sent_id])}")
-                        else:
-                            print(f"sent_id {sent_id} 超出了 word2token 的长度 {len(word2token)}")
 
                     if "coref" in mention:
                         coref_pos[entity_id].append((start, end))
@@ -180,11 +174,10 @@ class DocRED(Dataset):
                     mention2sent.append(sent_id)
 
                     mention_id += 1
-                # end for
-            # end for
+
             assert sum(len(x) for x in coref_pos) == COREF_NUM
 
-            # 保存全部实体对和关系
+            
             hts: List[List[int]] = []
             relations: List[Tensor] = []
             sent_labels = []
@@ -194,13 +187,13 @@ class DocRED(Dataset):
                     hts.append([h, t])
                     relation = torch.zeros(len(self.rel2id))
                     sent_evi = [0] * SENT_NUM
-                    # 真正有关系的实体对
+                    
                     if (h, t) in train_triple:
                         for label in train_triple[h, t]:
                             r, e = label["relation"], label["evidence"]
                             relation[r] = 1.
                             for i in e:
-                                if 0 <= i < SENT_NUM:  # 确保证据句ID有效
+                                if 0 <= i < SENT_NUM:  
                                     sent_evi[i] += 1
 
                         relations.append(relation)
@@ -211,12 +204,11 @@ class DocRED(Dataset):
                         relations.append(relation)
                         sent_labels.append(sent_evi)
                         neg_samples += 1
-                # end for
-            # end for
+
             assert len(relations) == len(hts) == ENT_NUM * ENT_NUM
             relations: Tensor = torch.stack(relations)
 
-            # 加入cls和seq
+            
             max_tokens_len = max(max_tokens_len, len(tokens) + 2)
 
             input_ids = tokenizer.convert_tokens_to_ids(tokens)
@@ -245,7 +237,7 @@ class DocRED(Dataset):
                 'sent_labels': sent_labels,
             }
             features.append(feature)
-        # end for
+       
 
         print("# of documents {}.".format(i_line))
         print("maximum tokens length:", max_tokens_len)
@@ -683,8 +675,8 @@ class DocREDataModule:
 
 
 
-if __name__ == '__main__':
-    tokenizer = AutoTokenizer.from_pretrained('./PLM/longformer-large-4096')
-    dm = DocREDataModule('./data/docred', tokenizer, 'train.json', 'dev.json', 'test.json', 4096, False, False, 4, 4)
-    dm.gen_train_facts()
-    dm.data_train.official_evaluate_benchmark(torch.tensor([]))
+# if __name__ == '__main__':
+#     tokenizer = AutoTokenizer.from_pretrained('./PLM/longformer-large-4096')
+#     dm = DocREDataModule('./data/docred', tokenizer, 'train.json', 'dev.json', 'test.json', 4096, False, False, 4, 4)
+#     dm.gen_train_facts()
+#     dm.data_train.official_evaluate_benchmark(torch.tensor([]))

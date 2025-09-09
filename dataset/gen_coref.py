@@ -1,13 +1,6 @@
-# _*_ coding : utf-8 _*_
-# @Author : 扶摇
 
 import nltk
-
-nltk.data.path.append(r"D:\Code\Deep-Learn\pythonProject\PLM\nltk_data")
 import spacy
-
-spacy.load("en_core_web_sm")  # 确保模型已安装
-
 from tqdm import tqdm
 import json
 from collections import defaultdict, Counter
@@ -18,8 +11,6 @@ from allennlp.predictors.predictor import Predictor
 def gen_coref(predictor, doc_id, sample):
     sents = sample['sents']
     entities = sample['vertexSet']
-
-    # Step 1: 构建 document 和各种索引映射
     document = ''
     word2char = []
     word2sent = []
@@ -31,29 +22,29 @@ def gen_coref(predictor, doc_id, sample):
         for word_id, word in enumerate(sent):
             word2char.append([])
             word2sent.append([sent_id, word_id])
-            word2char[-1].append(len(document))  # 起始字符位置
+            word2char[-1].append(len(document))  
             document += word
-            word2char[-1].append(len(document))  # 结束字符位置（不包含）
+            word2char[-1].append(len(document)) 
             document += ' '
             sent2word[-1].append(word_cnt)
             word_cnt += 1
 
     assert len(word2char) == len(word2sent) == sum(len(sent) for sent in sents) == word_cnt
-    document = document[:-1]  # 去掉最后多余的空格
+    document = document[:-1]  
 
-    # Step 2: 构建 char2word 映射（每个字符属于哪个词）
+    
     CHAR_NUM = len(document)
     char2word = np.array([-1] * CHAR_NUM)
     for word_id, (start_idx, end_idx) in enumerate(word2char):
         if start_idx < CHAR_NUM:
             char2word[start_idx:end_idx] = word_id
 
-    # Step 3: 使用 AllenNLP 进行共指分析
+    
     result = predictor.predict(document=document)
     tokens = result["document"]
     clusters = result["clusters"]
 
-    # Step 4: 构建 token 到字符位置的映射
+    
     token2char = []
     start = 0
     for token in tokens:
@@ -65,7 +56,7 @@ def gen_coref(predictor, doc_id, sample):
         token2char.append((start, end))
         start = end
 
-    # Step 5: 构建 char2cluster 映射（每个字符属于哪个共指簇）
+    
     char2cluster = np.array([-1] * CHAR_NUM)
     for cluster_id, cluster in enumerate(clusters):
         for start_token, end_token in cluster:
@@ -77,7 +68,7 @@ def gen_coref(predictor, doc_id, sample):
                 end_char = CHAR_NUM
             char2cluster[start_char:end_char] = cluster_id
 
-    # Step 6: 构建 char2entity 映射，并统计 entity -> cluster 分布
+    
     char2entity = np.array([-1] * CHAR_NUM)
     entity_clusters = defaultdict(Counter)
 
@@ -101,7 +92,7 @@ def gen_coref(predictor, doc_id, sample):
             if cluster_id:
                 entity_clusters[entity_id][cluster_id.pop()] += 1
 
-    # Step 7: 将共指提及添加到对应实体中
+    
     entities = sample['vertexSet']
     for entity_id, entity_cluster in entity_clusters.items():
         max_time = -1
@@ -154,7 +145,7 @@ def gen_dataset_coref(predictor, filename, split):
 
 
 if __name__ == '__main__':
-    # 加载 AllenNLP 共指解析模型（需提前下载模型文件）
+    
     model_path = "../PLM/coref-spanbert-large-2021.03.10.tar.gz"
     allen_coref = Predictor.from_path(model_path)
 

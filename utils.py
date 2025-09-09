@@ -64,23 +64,23 @@ class Collator:
             edge_hts.append(list(zip(z[0].tolist(), z[1].tolist())))
         labels = torch.cat([f["label"] for f in batch])
 
-        # -------------------- 新增句子级证据标签处理 --------------------
+        
         sent_labels = [f["sent_labels"] for f in batch if "sent_labels" in f]
         if sent_labels and all(sl is not None for sl in sent_labels):
-            # 1. 提取每个样本的句子数
-            max_sent = max(len(sl[0]) for sl in sent_labels)  # 每个 sent_label 是 [实体对数量, 句子数]
+            
+            max_sent = max(len(sl[0]) for sl in sent_labels)  
             sent_labels_padded = []
             for sl in sent_labels:
                 sl_array = np.array(sl)
                 cur_sent_num = sl_array.shape[1]
-                # 2. 在句子数维度（dim=1）右侧补 0，保持实体对维度不变
+                
                 padded_sl = np.pad(sl_array, pad_width=((0, 0), (0, max_sent - cur_sent_num)), mode="constant")
                 sent_labels_padded.append(padded_sl)
-            # 3. 合并为张量，形状为 [batch_size * 实体对数量, max_sent]
+            
             sent_labels_tensor = torch.from_numpy(np.concatenate(sent_labels_padded, axis=0)).long()
         else:
             sent_labels_tensor = None
-        # -------------------------------------------------------------
+        
 
         inputs = self.tokenizer.pad(input_ids, return_tensors='pt')
         output = {
@@ -157,30 +157,22 @@ def create_graph(men2ent, ent2men, sent2men, men2sent, kg, rel2id, MEN_NUM, ENT_
                 u.append(ent_id)
                 v.append(obj)
                 etype.append(rel2id[rel] - 1)
-                # ent_graph_dict["node", rel2id[rel] - 1, "node"].append((ent_id, obj))
-    # for rel in rel2id:
-    #     if rel != 'Na' and ('node', rel2id[rel] - 1, 'node') not in ent_graph_dict:
-    #         ent_graph_dict['node', rel2id[rel] - 1, 'node'].append((ENT_NUM, ENT_NUM))
-    # ent_graph_dict["men", "m->e", "ent"] = (list(range(MEN_NUM)), men2ent)  # only one entity node is enough
+
 
     e_label = torch.zeros(len(etype))
     for i, (s, t, r) in enumerate(zip(u, v, etype)):
         e_label[i] = true_label[s, t, r + 1]
 
     men_graph = dgl.heterograph(men_graph_dict)
-    # ent_graph = dgl.heterograph(ent_graph_dict, num_nodes_dict={"node": ENT_NUM + 1})
+
     ent_graph = dgl.graph((u, v), num_nodes=ENT_NUM)
 
     assert men_graph.num_nodes() == DOC_NUM + MEN_NUM + SENT_NUM
-    # assert ent_graph.num_nodes("men") == MEN_NUM
-    # assert ent_graph.num_nodes("ent") == ENT_NUM
+
 
     assert men_graph.num_edges("d-s") == SENT_NUM * 2
     assert men_graph.num_edges("s-s") == SENT_NUM * (SENT_NUM - 1)
     assert men_graph.num_edges("s-m") == MEN_NUM * 2
-    # assert ent_graph.num_edges('m->e') == MEN_NUM
-    # assert ent_graph.num_edges() == sum(len(edges) for node_dict in kg for edges in node_dict.values()) + \
-    #        len(rel2id) - 1 - len(set(k for d in kg for k in d.keys()))
     assert ent_graph.num_edges() == sum(len(edges) for node_dict in kg for edges in node_dict.values())
 
     def fc_edge_nums(gms):
@@ -192,119 +184,23 @@ def create_graph(men2ent, ent2men, sent2men, men2sent, kg, rel2id, MEN_NUM, ENT_
 
     assert men_graph.num_edges("is/m-m") == fc_edge_nums(sent2men)
     assert men_graph.num_edges("ie/m-m") == fc_edge_nums(ent2men)
-    # assert len(ent_graph.etypes) == len(rel2id) - 1
-
-    return men_graph, ent_graph, torch.tensor(etype), e_label
-
-
-def dwie_create_graph(men2ent, ent2men, sent2men, men2sent, kg, rel2id, MEN_NUM, ENT_NUM, SENT_NUM, DOC_NUM, true_label):
-    men_graph_dict = {}
-
-    doc_id = list(range(DOC_NUM))  # doc node
-    men_ids = list(range(DOC_NUM, DOC_NUM + MEN_NUM))  # men nodes
-    sent_ids = list(range(DOC_NUM + MEN_NUM, DOC_NUM + MEN_NUM + SENT_NUM))  # sent nodes
-
-    # ================================================doc--sent=========================================================
-    men_graph_dict["node", "d-s", "node"] = (doc_id * SENT_NUM + sent_ids, sent_ids + doc_id * SENT_NUM)
-
-    # ================================================sent--sent========================================================
-    sss = []
-    for i in range(SENT_NUM):
-        for j in range(i + 1, SENT_NUM):
-            sss.append((sent_ids[i], sent_ids[j]))
-            sss.append((sent_ids[j], sent_ids[i]))
-    men_graph_dict["node", "s-s", "node"] = sss
-
-    # ===============================================mention--sent======================================================
-    men2sent = np.array(sent_ids)[men2sent].tolist()
-    men_graph_dict["node", "s-m", "node"] = (men_ids + men2sent, men2sent + men_ids)
-
-    # ==========================================intra-entity-mention--mention===========================================
-    ie_mms = []
-    for ems in ent2men:
-        n = len(ems)
-        for i in range(n):
-            for j in range(i + 1, n):
-                x, y = ems[i], ems[j]
-                ie_mms.append((men_ids[x], men_ids[y]))
-                ie_mms.append((men_ids[y], men_ids[x]))
-    men_graph_dict["node", "ie/m-m", "node"] = ie_mms
-
-    # ============================================intra-sent-mention--mention===========================================
-    is_mms = []
-    for sms in sent2men:
-        n = len(sms)
-        for i in range(n):
-            for j in range(i + 1, n):
-                x, y = sms[i], sms[j]
-                is_mms.append((men_ids[x], men_ids[y]))
-                is_mms.append((men_ids[y], men_ids[x]))
-
-    men_graph_dict["node", "is/m-m", "node"] = is_mms
-
-    # =================================================knowledge-graph==================================================
-    u, v, etype = [], [], []
-    for ent_id, edges in enumerate(kg):
-        for rel, objs in edges.items():
-            for obj in objs:
-                u.append(ent_id)
-                v.append(obj)
-                etype.append(rel2id[rel] - 1)
-                # ent_graph_dict["node", rel2id[rel] - 1, "node"].append((ent_id, obj))
-    # for rel in rel2id:
-    #     if rel != 'Na' and ('node', rel2id[rel] - 1, 'node') not in ent_graph_dict:
-    #         ent_graph_dict['node', rel2id[rel] - 1, 'node'].append((ENT_NUM, ENT_NUM))
-    # ent_graph_dict["men", "m->e", "ent"] = (list(range(MEN_NUM)), men2ent)  # only one entity node is enough
-    e_label = torch.zeros(len(etype))
-    for i, (s, t, r) in enumerate(zip(u, v, etype)):
-        e_label[i] = true_label[s, t, 1:].count_nonzero().item() > 0
-
-    men_graph = dgl.heterograph(men_graph_dict)
-    # ent_graph = dgl.heterograph(ent_graph_dict, num_nodes_dict={"node": ENT_NUM + 1})
-    ent_graph = dgl.graph((u, v), num_nodes=ENT_NUM)
-
-    assert men_graph.num_nodes() == DOC_NUM + MEN_NUM + SENT_NUM
-    # assert ent_graph.num_nodes("men") == MEN_NUM
-    # assert ent_graph.num_nodes("ent") == ENT_NUM
-
-    assert men_graph.num_edges("d-s") == SENT_NUM * 2
-    assert men_graph.num_edges("s-s") == SENT_NUM * (SENT_NUM - 1)
-    assert men_graph.num_edges("s-m") == MEN_NUM * 2
-    # assert ent_graph.num_edges('m->e') == MEN_NUM
-    # assert ent_graph.num_edges() == sum(len(edges) for node_dict in kg for edges in node_dict.values()) + \
-    #        len(rel2id) - 1 - len(set(k for d in kg for k in d.keys()))
-    assert ent_graph.num_edges() == sum(len(edges) for node_dict in kg for edges in node_dict.values())
-
-    def fc_edge_nums(gms):
-        edge_nums = 0
-        for ms in gms:
-            gn = len(ms)
-            edge_nums += gn * (gn - 1)
-        return edge_nums
-
-    assert men_graph.num_edges("is/m-m") == fc_edge_nums(sent2men)
-    assert men_graph.num_edges("ie/m-m") == fc_edge_nums(ent2men)
-    # assert len(ent_graph.etypes) == len(rel2id) - 1
-
+    
     return men_graph, ent_graph, torch.tensor(etype), e_label
 
 
 def gen_coref(coref_nlp, doc_id, sample):
-    """
-    sample : 是一篇文档
-    """
 
     sents = sample['sents']
     entities = sample['vertexSet']
-    document = ''  # document : 整合所有句子
+    document = ''  
 
     word2char = []
     word2sent = []
     sent2word = []
     word_cnt = 0
-    for sent_id, sent in enumerate(sents):  # 处理每个句子
+    for sent_id, sent in enumerate(sents):  
         sent2word.append([])
-        for word_id, word in enumerate(sent):  # 处理一个句子中的每个单词
+        for word_id, word in enumerate(sent):  
             word2char.append([])
             word2sent.append([sent_id, word_id])
             word2char[-1].append(len(document))
@@ -314,7 +210,7 @@ def gen_coref(coref_nlp, doc_id, sample):
             sent2word[-1].append(word_cnt)
             word_cnt += 1
     assert len(word2char) == len(word2sent) == sum(len(sent) for sent in sents) == word_cnt
-    document = document[:-1]  # 去掉最后一个空格
+    document = document[:-1]  
     WORD_NUM, CHAR_NUM = len(word2char), len(document)
     char2word = np.array([-1] * CHAR_NUM)
     for word_id, (start_idx, end_idx) in enumerate(word2char):
@@ -327,9 +223,6 @@ def gen_coref(coref_nlp, doc_id, sample):
     char2cluster = np.array([-1] * CHAR_NUM)
     for cluster_id, cluster in enumerate(clusters):
         for mention_span in cluster:
-            """
-                span 是该子数组，它表示该指代在原始文本中的字符位置范围。
-            """
             span = char2cluster[mention_span.start_char:mention_span.end_char]
             span[span == -1] = cluster_id
 
@@ -344,9 +237,9 @@ def gen_coref(coref_nlp, doc_id, sample):
             char2entity[start_idx:end_idx] = entity_id
             cluster_id = set(np.unique(char2cluster[start_idx:end_idx]))
 
-            # 这段代码的功能是从 cluster_id 集合中移除 -1
+            
             cluster_id.discard(-1)
-            # assert len(cluster_id) <= 1, f"{doc_id}/{entity_id}/{mention_id}"
+            
 
             if len(cluster_id) > 1 and entity_id in entity_clusters:
                 del entity_clusters[entity_id]
@@ -356,14 +249,12 @@ def gen_coref(coref_nlp, doc_id, sample):
 
     entities = sample['vertexSet']
     for entity_id, entity_cluster in entity_clusters.items():
-        # assert len(entity_cluster) == 1, f"{doc_id}/{entity_id}/{entity_cluster}"
+        
         max_time = -1
         cluster_id = -1
         for k, v in entity_cluster.items():
             if v > max_time:
                 cluster_id, max_time = k, v
-        # cluster_id = entity_cluster.pop()
-        # 获取出现次数最多的核心ference簇
         cluster = clusters[cluster_id]
 
         for mention_span in cluster:
@@ -374,7 +265,6 @@ def gen_coref(coref_nlp, doc_id, sample):
                     word_ids.pop(0)
                 start_sent_id, start_word_id = word2sent[word_ids[0]]
                 end_sent_id, end_word_id = word2sent[word_ids[-1]]
-                # assert start_sent_id == end_sent_id, f"{doc_id}/{entity_id}/{mention_span.text}"
                 if start_sent_id != end_sent_id:
                     continue
                 entities[entity_id].append({
@@ -388,8 +278,6 @@ def gen_coref(coref_nlp, doc_id, sample):
 
 
 def gen_dataset_coref(coref_nlp, dataset_dir, filename, force_regeneration):
-    # filename: 'train_revised.json',
-    # dataset_dir : WindowsPath('data/Re-DocRED')
     split = filename[:filename.rfind(".")]   # 'train_revised'
     save_path = os.path.join(dataset_dir, f"{split}_coref.json")  # 'data/Re-DocRED/train_revised_coref.json'
     if os.path.exists(save_path) and not force_regeneration:

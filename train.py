@@ -44,10 +44,10 @@ def train(cfg, datamodule, model):
     optimizer_grouped_parameters = [
         {"params": [p for n, p in model.named_parameters()
                     if not any(nd in n for nd in new_layer)],
-         "lr": args.learning_rate,"weight_decay": 0.0001  # 预训练层：较小的衰减
+         "lr": args.learning_rate,"weight_decay": 0.0001  
         },
         {"params": [p for n, p in model.named_parameters() if any(nd in n for nd in new_layer)],
-         "lr": args.classifier_lr, "weight_decay": 0.01     # 新层：稍大的衰减（可根据需求调整）
+         "lr": args.classifier_lr, "weight_decay": 0.01     
         }
     ]
     optimizer = AdamW(optimizer_grouped_parameters, lr=args.learning_rate, eps=args.adam_epsilon)
@@ -55,7 +55,7 @@ def train(cfg, datamodule, model):
         scheduler = get_cosine_schedule_with_warmup(optimizer, warmup_steps, total_steps)
     else:
         scheduler = get_linear_schedule_with_warmup(optimizer, warmup_steps, total_steps)
-    # 自动混合精度训练通过使用较低精度的浮点数（如 float16）来加速计算并减少内存使用，
+    
     scaler = amp.GradScaler()
 
     num_steps = 0
@@ -85,20 +85,14 @@ def train(cfg, datamodule, model):
                 'labels': batch['labels'].to(args.device),
                 'sent_labels': batch['sent_labels'].to(args.device),
             }
-            # with torch.autograd.set_detect_anomaly(True):
+            
             with torch.autocast(device_type='cuda', dtype=torch.float16):
                 loss = model(**inputs)
-                # if epoch == 0 and step == 0 and loss > 5.5:
-                #     print("initial loss: ", loss)
-                #     print("Bad loss, Stop Training ...")  # 
-                #     return
 
                 loss = loss / args.gradient_accumulation_steps
 
             scaler.scale(loss).backward()
-            """
-            这个条件检查是否达到了梯度累积的步数。如果达到了，就执行梯度更新
-            """
+
             if (step + 1) % args.gradient_accumulation_steps == 0:
                 if args.max_grad_norm > 0:
                     scaler.unscale_(optimizer)
@@ -112,9 +106,6 @@ def train(cfg, datamodule, model):
 
             if (args.log_steps > 0 and step % args.log_steps == 0) or (step + 1 == len(train_dataloader)):
                 print(f"{epoch}/{step}/{len(train_dataloader)}: current loss {round(loss.item(), 4)}")
-            """
-            模型评估
-            """
             if (step + 1) == len(train_dataloader) \
                     or (args.evaluation_steps > 0
                         and num_steps > total_steps // 2
@@ -124,9 +115,6 @@ def train(cfg, datamodule, model):
 
                 dev_score, dev_output = evaluate(cfg, model, dev_dataset, dev_dataloader, tag="dev")
                 print(dev_output)
-                # if epoch == 0 and (step + 1) == len(train_dataloader) and dev_score < 35:  # 
-                #     print("Bad result, Stop Training ...")
-                #     return
                 lm_lr, classifier_lr = get_lr(optimizer)
                 print(f'Current Step: {num_steps}, Current PLM lr: {lm_lr}, Current Classifier lr: {classifier_lr}')
 
@@ -134,9 +122,6 @@ def train(cfg, datamodule, model):
                     dev_best_score = dev_score
                     test_score, test_output = evaluate(cfg, model, test_dataset, test_dataloader, tag="test")
                     print(test_output)
-                    # pred = report(args, model, test_features, collate_func)
-                    # with open("result.json", "w") as fh:
-                    #     json.dump(pred, fh)
                     if test_score > test_best_score:
                         test_best_score = test_score
                         save_dir = args.save_best_path
@@ -375,5 +360,4 @@ def main(cfg):
 
 
 if __name__ == "__main__":
-    # torch.autograd.set_detect_anomaly(True)  # 在代码开头添加
     main()

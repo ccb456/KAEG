@@ -33,7 +33,7 @@ def train(cfg, datamodule, model):
 
     train_dataset, train_dataloader = datamodule.train_dataset, datamodule.train_dataloader()
     dev_dataset, dev_dataloader = datamodule.dev_dataset, datamodule.dev_dataloader()
-    # test_dataset, test_dataloader = datamodule.test_dataset, datamodule.test_dataloader()
+    
 
     total_steps = args.epochs * (len(train_dataloader) // args.gradient_accumulation_steps)
     warmup_steps = int(total_steps * args.warmup_ratio)
@@ -85,7 +85,7 @@ def train(cfg, datamodule, model):
                 'labels': batch['labels'].to(args.device),
                 'sent_labels': batch['sent_labels'].to(args.device),
             }
-            # with torch.autograd.set_detect_anomaly(True):
+            
             with torch.autocast(device_type='cuda', dtype=torch.float16):
                 loss = model(**inputs)
 
@@ -121,24 +121,24 @@ def train(cfg, datamodule, model):
 
                 if dev_score > dev_best_score:
                     dev_best_score = dev_score  
-                    # 保存最佳开发分数模型的逻辑（基于dev_score）
+                    
                     save_dir = args.save_best_path
                     if not os.path.exists(save_dir):
                         os.makedirs(save_dir)
                         
-                    # 获取已保存的同模型目录
+                    
                     pre_max_models = [
                         name for name in os.listdir(save_dir) 
                         if name.startswith(model_name_or_path + "_")
                     ]
                     
-                    # 计算历史最佳开发分数
+                    
                     pre_max_score = -1
                     if pre_max_models:
                         scores = []
                         for name in pre_max_models:
                             try:
-                                # 从目录名解析开发分数（格式：模型名_分数）
+                                
                                 score_part = name[len(model_name_or_path)+1:]
                                 score = float(score_part)
                                 scores.append(score)
@@ -146,19 +146,19 @@ def train(cfg, datamodule, model):
                                 continue
                         pre_max_score = max(scores) if scores else -1
                     
-                    # 仅当当前开发分数超过历史最佳时保存
+                    
                     if dev_score > pre_max_score:
-                        # 新目录名使用开发分数
+                        
                         sub_save_dir = f"{save_dir}/{model_name_or_path}_{dev_score:.2f}"
                         os.makedirs(sub_save_dir, exist_ok=True)
                         
-                        # 保存模型和配置
+                        
                         save_model_path = f"{sub_save_dir}/docre_model.pth"
                         save_config_path = f"{sub_save_dir}/config.txt"
                         torch.save(model.state_dict(), save_model_path)
                         print_config_tree(cfg, open(save_config_path, "w"))
                         
-                        # 删除旧的最佳模型
+                        
                         if pre_max_score != -1:
                             old_dir = f"{save_dir}/{model_name_or_path}_{pre_max_score:.2f}"
                             if os.path.exists(old_dir):
