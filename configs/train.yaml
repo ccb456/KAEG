@@ -29,7 +29,7 @@ model:
     edge_types: ['d-s', 's-s', 's-m', 'ie/m-m', 'is/m-m']
     feat_drop: 0.2
     attn_drop: 0.1
-    # 是否使用残差连接
+   
     residual: false
     activation:
       _target_: torch.nn.Tanh
@@ -72,7 +72,7 @@ model:
 
 train:
   seed: 66
-  epochs: 20
+  epochs: 30
   log_steps: 100                         # 
   device: "cuda:0"
   start_steps: -1
