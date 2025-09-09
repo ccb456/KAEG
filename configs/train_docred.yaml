@@ -29,7 +29,7 @@ model:
     edge_types: ['d-s', 's-s', 's-m', 'ie/m-m', 'is/m-m']
     feat_drop: 0.2
     attn_drop: 0.1
-    # 是否使用残差连接
+    
     residual: false
     activation:
       _target_: torch.nn.Tanh
@@ -86,5 +86,5 @@ train:
   save_best_path: models/docred/kg=0.05-evi=0.05
   save_last_path: null
 
-load_path: save-model/docre_model.pth
+load_path: null
 load_checkpoint: null
