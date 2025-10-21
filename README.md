@@ -1,7 +1,5 @@
 # KEGA
 
-Code for paper **Knowledge-augmented and Evidence-guided document-level relation extraction with Axial Attention.**
-> Document-level relation extraction aims to identify semantic relationships between entities across multiple sentences, which requires comprehensive reasoning beyond sentence boundaries. Existing methods often address different reasoning skills in isolation, limiting their ability to capture complex dependencies. To overcome this limitation, we propose a unified framework that integrates three complementary modules. First, a document graph representation enhancement module constructs a multi-level heterogeneous graph with coreference resolution to enrich entity representations. Second, a knowledge-augmented module incorporates external knowledge with confidence filtering to reduce noise. Third, an evidence-guided reasoning module applies axial attention and evidence supervision to support multi-step inference. By combining these components into a unified architecture, we enable the proposed approach to robustly model cross-sentence dependencies and implicit relations. Extensive experiments on Re-DocRED and DocRED datasets demonstrate significant improvements over existing methods, highlighting the framework’s potential for advancing large-scale information extraction and knowledge-driven applications.
 ## Requirements
 
 Packages listed below are required.
