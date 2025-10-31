@@ -1,4 +1,4 @@
-# KEGA
+# KAEG
 
 ## Requirements
 
