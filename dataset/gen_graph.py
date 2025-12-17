@@ -144,7 +144,7 @@ def gen_dataset_graphs(filename, split, name):
 
 
 if __name__ == '__main__':
-    # gen_dataset("./dataset/train_revised.json", "train")
+    gen_dataset("./dataset/train_revised.json", "train")
     gen_dataset_one_hop_relations("train_labels.json", "test")
     # res = get_label("Gold by RIAA")
     gen_dataset_graphs("./dataset/train_revised.json", "dev", "test")

@@ -46,38 +46,6 @@ class AxialTransformer_by_entity(nn.Module):
             x = self.lns[idx](x)
         return x
 
-# AxialTransformer_by_entity
-# class AxialTransformer_by_entity(nn.Module):
-#     def __init__(self, emb_size=768, dropout=0.1, num_layers=2, dim_index=-1, heads=8, num_dimensions=2,):
-#         super().__init__()
-#         self.axial_attns = nn.ModuleList([
-#             AxialAttention(dim=emb_size, dim_index=dim_index, heads=heads, num_dimensions=num_dimensions,)
-#             for _ in range(num_layers)
-#         ])
-#         self.ffns = nn.ModuleList([
-#             nn.Sequential(
-#                 nn.Linear(emb_size, emb_size * 4),
-#                 nn.SiLU(),
-#                 nn.Linear(emb_size * 4, emb_size),
-#                 nn.Dropout(dropout)
-#             )
-#             for _ in range(num_layers)
-#         ])
-
-#         self.attn_dropouts = nn.ModuleList([nn.Dropout(dropout) for i in range(num_layers)])
-#         # 添加层归一化
-#         self.lns1 = nn.ModuleList([nn.LayerNorm(emb_size) for _ in range(num_layers)])
-#         self.lns2 = nn.ModuleList([nn.LayerNorm(emb_size) for _ in range(num_layers)])
-
-#     def forward(self, x):
-#         for i in range(len(self.axial_attns)):
-#             # 自注意力+残差+层归一化
-#             x = x + self.attn_dropouts[i](self.axial_attns[i](x))
-#             x = self.lns1[i](x)
-#             # 前馈网络+残差+层归一化
-#             x = x + self.ffns[i](x)
-#             x = self.lns2[i](x)
-#         return x
 
 class NoAxialTransformer(nn.Module):
     def __init__(self):
