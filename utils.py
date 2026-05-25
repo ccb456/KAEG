@@ -289,7 +289,7 @@ def dwie_create_graph(men2ent, ent2men, sent2men, men2sent, kg, rel2id, MEN_NUM,
     return men_graph, ent_graph, torch.tensor(etype), e_label
 
 
-def gen_coref(coref_nlp, doc_id, sample):
+def gen_coref(doc_id, sample):
     """
     sample : 是一篇文档
     """
@@ -387,15 +387,15 @@ def gen_coref(coref_nlp, doc_id, sample):
     return sample
 
 
-def gen_dataset_coref(coref_nlp, dataset_dir, filename, force_regeneration):
+def gen_dataset_coref(dataset_dir, filename, force_regeneration):
     # filename: 'train_revised.json',
     # dataset_dir : WindowsPath('data/Re-DocRED')
     split = filename[:filename.rfind(".")]   # 'train_revised'
     save_path = os.path.join(dataset_dir, f"{split}_coref.json")  # 'data/Re-DocRED/train_revised_coref.json'
     if os.path.exists(save_path) and not force_regeneration:
         return save_path
-    dataset = json.load(open(os.path.join(dataset_dir, filename)))
-    for doc_id, sample in tqdm(enumerate(dataset), desc=f"gen {split} data coref", ncols=100, total=len(dataset)):
-        gen_coref(coref_nlp, doc_id, sample)
-    json.dump(dataset, open(save_path, "w"))
-    return save_path
+    # dataset = json.load(open(os.path.join(dataset_dir, filename)))
+    # for doc_id, sample in tqdm(enumerate(dataset), desc=f"gen {split} data coref", ncols=100, total=len(dataset)):
+    #     gen_coref(coref_nlp, doc_id, sample)
+    # json.dump(dataset, open(save_path, "w"))
+    # return save_path

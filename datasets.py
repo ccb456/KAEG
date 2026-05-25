@@ -11,10 +11,10 @@ from torch.utils.data import Dataset
 from typing import List, Dict, Tuple
 from collections import defaultdict
 from transformers import PreTrainedTokenizer, AutoTokenizer
-from utils import create_graph, Collator, dwie_create_graph
+from utils import create_graph, Collator
 from torch.utils.data import DataLoader
 from utils import gen_dataset_coref
-import spacy
+# import spacy
 
 
 class DocRED(Dataset):
@@ -39,7 +39,7 @@ class DocRED(Dataset):
         model_name_or_path = model_name_or_path[model_name_or_path.rfind("/") + 1:]
 
         if use_coref:
-            ori_path = gen_dataset_coref(self.data_module.coref_nlp, dataset_dir, file_name, force_regeneration)
+            ori_path = gen_dataset_coref(dataset_dir, file_name, force_regeneration)
         else:
             ori_path = str(dataset_dir / file_name)
 
@@ -603,7 +603,7 @@ class DocREDataModule:
         self.train_batch_size = train_batch_size
         self.test_batch_size = test_batch_size
 
-        self.coref_nlp = spacy.load("en_core_web_trf")
+        # self.coref_nlp = spacy.load("en_core_web_trf")
 
         self.data_train = DocRED(self, dataset_dir, train_file, tokenizer, force_regeneration, use_coref)
 
